@@ -2,6 +2,7 @@
 @inject HttpClient HttpClient
 @inject OrderState OrderState
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
 <div class="main">
     <ul class="pizza-cards">
@@ -28,7 +29,7 @@
 
             @foreach (var configuredPizza in OrderState.Order.Pizzas)
             {
-                <ConfiguredPizzaItem Pizza="configuredPizza" OnRemoved="@(() => OrderState.RemoveConfiguredPizza(configuredPizza))" />
+                <ConfiguredPizzaItem Pizza="configuredPizza" OnRemoved="@(() => RemovePizza(configuredPizza))" />
             }
         </div>
     }
@@ -37,20 +38,19 @@
         <div class="empty-cart">Choose a pizza<br> to get started</div>
     }
 
-<div class="order-total @(OrderState.Order.Pizzas.Any() ? "" : "hidden")">
-    Total:
-    <span class="total-price">@OrderState.Order.GetFormattedTotalPrice()</span>
-    <a href="checkout" class="btn btn-warning" disabled="@(OrderState.Order.Pizzas.Count == 0)">
-        Order >
-    </a>
-</div>
+    <div class="order-total @(OrderState.Order.Pizzas.Any() ? "" : "hidden")">
+        Total:
+        <span class="total-price">@OrderState.Order.GetFormattedTotalPrice()</span>
+        <a href="checkout" class="btn btn-warning" disabled="@(OrderState.Order.Pizzas.Count == 0)">
+            Order >
+        </a>
+    </div>
 </div>
 
-@if (OrderState.ShowingConfigureDialog)
-{
+<TemplatedDialog Show="OrderState.ShowingConfigureDialog">
     <ConfigurePizzaDialog Pizza="OrderState.ConfiguringPizza" OnCancel="OrderState.CancelConfigurePizzaDialog"
                           OnConfirm="OrderState.ConfirmConfigurePizzaDialog" />
-}
+</TemplatedDialog>
 
 
 
@@ -60,5 +60,13 @@
     protected async override Task OnInitializedAsync()
     {
         specials = await HttpClient.GetJsonAsync<List<PizzaSpecial>>("specials");
+    }
+
+    async Task RemovePizza(Pizza configuredPizza)
+    {
+        if (await JS.Confirm($"Remove {configuredPizza.Special.Name} pizza from the order?"))
+        {
+            OrderState.RemoveConfiguredPizza(configuredPizza);
+        }
     }
 }

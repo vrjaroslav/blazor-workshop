@@ -2,6 +2,7 @@
 @using System.Threading
 @inject HttpClient HttpClient
 @implements IDisposable
+@attribute [Authorize]
 
 <div class="main">
     @if (invalidOrder)
@@ -27,6 +28,9 @@
             <div class="track-order-body">
                 <div class="track-order-details">
                     <OrderReview Order="@orderWithStatus.Order" />
+                </div>
+                <div class="track-order-map">
+                    <Map Zoom="13" Markers="orderWithStatus.MapMarkers" />
                 </div>
             </div>
         </div>

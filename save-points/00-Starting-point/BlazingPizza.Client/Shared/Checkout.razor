@@ -2,29 +2,39 @@
 @inject OrderState OrderState
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
 <div class="main">
-    <EditForm Model="OrderState.Order.DeliveryAddress" OnValidSubmit="@PlaceOrder">
-        <div class="checkout-cols">
-            <div class="checkout-order-details">
-                <h4>Review order</h4>
-                <OrderReview Order="@OrderState.Order" />
-            </div>
-            <div class="checkout-delivery-address">
-                <h4>Deliver to...</h4>
-                <AddressEditor Address="@OrderState.Order.DeliveryAddress" />
-            </div>
-        </div>
+    <AuthorizeView Context="authContext">
+        <NotAuthorized>
+            <h2>Redirection you...</h2>
+        </NotAuthorized>
+        <Authorized>
+            <EditForm Model="OrderState.Order.DeliveryAddress" OnValidSubmit="@PlaceOrder">
+                <div class="checkout-cols">
+                    <div class="checkout-order-details">
+                        <h4>Review order</h4>
+                        <OrderReview Order="@OrderState.Order" />
+                    </div>
+                    <div class="checkout-delivery-address">
+                        <h4>Deliver to...</h4>
+                        <AddressEditor Address="@OrderState.Order.DeliveryAddress" />
+                    </div>
+                </div>
 
-        <button class="checkout-button btn btn-warning" type="submit" disabled="@isSubmitting">
-            Place order
-        </button>
-        <DataAnnotationsValidator />
-    </EditForm>
+                <button class="checkout-button btn btn-warning" type="submit" disabled="@isSubmitting">
+                    Place order
+                </button>
+                <DataAnnotationsValidator />
+            </EditForm>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
     bool isSubmitting = false;
     async Task PlaceOrder()
     {
@@ -34,5 +44,30 @@
         isSubmitting = false;
 
         NavigationManager.NavigateTo($"myorders/{newOrderId}");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        if (!authState.User.Identity.IsAuthenticated)
+        {
+            await LocalStorage.SetAsync(JSRuntime, "currentorder", OrderState.Order);
+            NavigationManager.NavigateTo("user/signin?redirectUri=/checkout", true);
+        }
+
+        if (!OrderState.Order.Pizzas.Any())
+        {
+            var savedOrder = await LocalStorage.GetAsync<Order>(JSRuntime, "currentorder");
+            if(savedOrder != null)
+            {
+                OrderState.ReplaceOrder(savedOrder);
+                await LocalStorage.DeleteAsync(JSRuntime, "currentorder");
+
+            }
+            else
+            {
+                NavigationManager.NavigateTo("");
+            }
+        }
     }
 }
